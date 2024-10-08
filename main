@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clicker Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #ff7e5f, #feb47b); /* Gradient background */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            position: relative;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+            cursor: pointer;
+            background-color: #4CAF50; /* Green background */
+            color: white; /* White text */
+            border: 2px solid #3e8e41; /* Darker green border */
+            border-radius: 5px;
+            transition: background-color 0.3s, border 0.3s; /* Smooth transition */
+        }
+        button:hover {
+            background-color: #45a049; /* Darker green on hover */
+            border: 2px solid #357a38; /* Even darker green on hover */
+        }
+        #leaderboard, #shop, #achievements {
+            display: none;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 2;
+        }
+        #shop {
+            left: auto;
+            right: 20px;
+        }
+        #achievements {
+            top: 150px; /* Place below the shop */
+            text-align: left; /* Align text to the left */
+        }
+        #leaderboard h2, #shop h2, #achievements h2 {
+            margin: 0;
+            font-family: 'Fredoka One', cursive;
+        }
+        #shop button, #achievements button {
+            margin: 5px;
+        }
+        #auto-tap-upgrades {
+            display: none; /* Domyślnie ukryte */
+        }
+        h1 {
+            font-family: 'Fredoka One', cursive;
+            color: #333; /* Darker color for the title */
+        }
+        .achievement {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 5px;
+            color: white;
+        }
+        .achievement.grey { background-color: grey; }
+        .achievement.yellow { background-color: yellow; color: black; } /* Black text for visibility */
+        .achievement.blue { background-color: blue; }
+        .achievement.purple { background-color: purple; }
+    </style>
+</head>
+<body>
+    <div id="leaderboard">
+        <h2>Leaderboard</h2>
+        <div id="leaderboard-stats">
+            <p>Punkty: 0</p>
+            <p>Ulepszenia: 0</p>
+            <p>Czas: 0s</p>
+        </div>
+    </div>
+
+    <div id="shop">
+        <h2>Sklep</h2>
+        <button id="buy-potion" disabled>Kup Potion (koszt: 10,000,000 punktów)</button>
+    </div>
+
+    <div id="achievements">
+        <h2>Osiągnięcia</h2>
+        <div id="achievements-list">
+            <div class="achievement grey">- Osiągnięcie: 100 kliknięć - Tytuł: Noob Clicker</div>
+            <div class="achievement yellow">- Osiągnięcie: 100,000 kliknięć - Tytuł: Normal Click Master</div>
+            <div class="achievement blue">- Osiągnięcie: 10,000,000 kliknięć - Tytuł: Super Master of Clicks</div>
+            <div class="achievement purple">- Osiągnięcie: 10,000,000,000 kliknięć - Tytuł: Grandmaster of All Time</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>Clicker Game</h1>
+        <button id="leaderboard-button">Leaderboard!</button>
+        <button id="shop-button">Shop</button>
+        <button id="achievements-button">Osiągnięcia</button>
+        <div id="score">Punkty: 0</div>
+        <button id="click-button">Kliknij mnie!</button>
+        <button id="buy-auto-tap-button" disabled>Kup Auto Tap (koszt: 1000 punktów)</button>
+        <div id="upgrades">
+            <h2>Ulepszenia</h2>
+            <button id="upgrade-1" disabled>Ulepszenie 1 (resetuje punkty, koszt: 20 punktów)</button>
+            <button id="upgrade-2" disabled>Ulepszenie 2 (resetuje punkty, koszt: 50 punktów)</button>
+        </div>
+        <div id="auto-tap-upgrades">
+            <h2>Ulepsz Auto Tap</h2>
+            <button id="upgrade-auto-tap" disabled>Ulepszenie Auto Tap (koszt: 100 punktów)</button>
+        </div>
+    </div>
+
+    <script>
+        // Inicjalizacja wartości
+        let score = localStorage.getItem('score') ? parseInt(localStorage.getItem('score')) : 0;
+        let clicks = localStorage.getItem('clicks') ? parseInt(localStorage.getItem('clicks')) : 0;
+        let scorePerClick = 1;
+        let upgrade1Cost = 20;
+        let upgrade2Cost = 50;
+        const autoTapCost = 1000;
+        let autoTapInterval;
+        let autoTapMultiplier = 1;
+        let autoTapUpgradeCost = 100;
+        let autoTapUpgradeLevel = 0;
+        let upgradesPurchased = 0;
+        let timeSpent = localStorage.getItem('timeSpent') ? parseInt(localStorage.getItem('timeSpent')) : 0;
+        let timeInterval;
+
+        const scoreDisplay = document.getElementById('score');
+        const clickButton = document.getElementById('click-button');
+        const buyAutoTapButton = document.getElementById('buy-auto-tap-button');
+        const upgrade1Button = document.getElementById('upgrade-1');
+        const upgrade2Button = document.getElementById('upgrade-2');
+        const upgradeAutoTapButton = document.getElementById('upgrade-auto-tap');
+        const leaderboardStats = document.getElementById('leaderboard-stats');
+        const leaderboard = document.getElementById('leaderboard');
+        const leaderboardButton = document.getElementById('leaderboard-button');
+        const shop = document.getElementById('shop');
+        const shopButton = document.getElementById('shop-button');
+        const achievements = document.getElementById('achievements');
+        const achievementsButton = document.getElementById('achievements-button');
+        const buyPotionButton = document.getElementById('buy-potion');
+        const autoTapUpgrades = document.getElementById('auto-tap-upgrades');
+
+        // Wyświetl punktację, czas na stronie
+        scoreDisplay.textContent = `Punkty: ${score}`;
+        updateLeaderboard();
+        updateShopButtons();
+
+        // Funkcja kliknięcia
+        clickButton.addEventListener('click', () => {
+            score += scorePerClick;
+            clicks += 1; // Increment clicks on each click
+            scoreDisplay.textContent = `Punkty: ${score}`;
+            updateLeaderboard();
+            updateUpgradeButtons();
+            updateShopButtons();
+            saveData();
+            checkAchievements(); // Check for achievements after each click
+        });
+
+        // Kup Potion
+        buyPotionButton.addEventListener('click', () => {
+            if (score >= 10000000) {
+                score -= 10000000;
+                scorePerClick *= 2; // Podwaja punkty na kliknięcie
+                buyPotionButton.disabled = true; // Dezaktywuje przycisk po zakupie
+                scoreDisplay.textContent = `Punkty: ${score}`;
+                updateLeaderboard();
+                saveData();
+                updateShopButtons();
+            }
+        });
+
+        // Ulepszenie 1
+        upgrade1Button.addEventListener('click', () => {
+            if (score >= upgrade1Cost) {
+                score = 0;
+                scorePerClick += 1;
+                upgradesPurchased++;
+                upgrade1Cost *= 2; // Podwaja koszt ulepszenia
+                upgrade1Button.textContent = `Ulepszenie 1 (koszt: ${upgrade1Cost} punktów)`;
+                scoreDisplay.textContent = `Punkty: ${score}`;
+                updateLeaderboard();
+                saveData();
+                updateUpgradeButtons();
+            }
+        });
+
+        // Ulepszenie 2
+        upgrade2Button.addEventListener('click', () => {
+            if (score >= upgrade2Cost) {
+                score = 0;
+                scorePerClick += 2; // Increase score per click by 2
+                upgradesPurchased++;
+                upgrade2Cost *= 2; // Double the cost for the next upgrade
+                upgrade2Button.textContent = `Ulepszenie 2 (koszt: ${upgrade2Cost} punktów)`;
+                scoreDisplay.textContent = `Punkty: ${score}`;
+                updateLeaderboard();
+                saveData();
+                updateUpgradeButtons();
+            }
+        });
+
+        // Kup Auto Tap
+        buyAutoTapButton.addEventListener('click', () => {
+            if (score >= autoTapCost) {
+                score -= autoTapCost;
+                autoTapInterval = setInterval(() => {
+                    score += scorePerClick * autoTapMultiplier;
+                    scoreDisplay.textContent = `Punkty: ${score}`;
+                    updateLeaderboard();
+                    saveData();
+                }, 1000);
+                buyAutoTapButton.disabled = true;
+                updateShopButtons();
+            }
+        });
+
+        // Ulepsz Auto Tap
+        upgradeAutoTapButton.addEventListener('click', () => {
+            if (score >= autoTapUpgradeCost) {
+                score -= autoTapUpgradeCost;
+                autoTapMultiplier += 1; // Increase the auto tap multiplier
+                autoTapUpgradeCost *= 2;
+                upgradeAutoTapButton.textContent = `Ulepszenie Auto Tap (koszt: ${autoTapUpgradeCost} punktów)`;
+                scoreDisplay.textContent = `Punkty: ${score}`;
+                updateLeaderboard();
+                saveData();
+                updateUpgradeButtons();
+            }
+        });
+
+        // Funkcje pomocnicze
+        function updateLeaderboard() {
+            leaderboardStats.innerHTML = `
+                <p>Punkty: ${score}</p>
+                <p>Ulepszenia: ${upgradesPurchased}</p>
+                <p>Czas: ${Math.floor(timeSpent / 1000)}s</p>
+            `;
+        }
+
+        function updateShopButtons() {
+            buyPotionButton.disabled = score < 10000000;
+            buyAutoTapButton.disabled = score < autoTapCost;
+        }
+
+        function updateUpgradeButtons() {
+            upgrade1Button.disabled = score < upgrade1Cost;
+            upgrade2Button.disabled = score < upgrade2Cost;
+            upgradeAutoTapButton.disabled = score < autoTapUpgradeCost;
+        }
+
+        function saveData() {
+            localStorage.setItem('score', score);
+            localStorage.setItem('clicks', clicks); // Save clicks
+            localStorage.setItem('timeSpent', timeSpent);
+        }
+
+        function checkAchievements() {
+            // Check and display achievement based on clicks
+            if (clicks === 100) {
+                alert("Osiągnięcie: Noob Clicker!"); // Display an alert for achievement
+            } else if (clicks === 100000) {
+                alert("Osiągnięcie: Normal Click Master!");
+            } else if (clicks === 10000000) {
+                alert("Osiągnięcie: Super Master of Clicks!");
+            } else if (clicks === 10000000000) {
+                alert("Osiągnięcie: Grandmaster of All Time!");
+            }
+        }
+
+        // Czas działania gry
+        timeInterval = setInterval(() => {
+            timeSpent += 1000; // Increment time every second
+            saveData(); // Save data every second
+        }, 1000);
+
+        // Pokazanie leaderboard, sklepu i osiągnięć
+        leaderboardButton.addEventListener('click', () => {
+            leaderboard.style.display = leaderboard.style.display === 'block' ? 'none' : 'block';
+        });
+
+        shopButton.addEventListener('click', () => {
+            shop.style.display = shop.style.display === 'block' ? 'none' : 'block';
+        });
+
+        achievementsButton.addEventListener('click', () => {
+            achievements.style.display = achievements.style.display === 'block' ? 'none' : 'block';
+        });
+    </script>
+</body>
+</html>
